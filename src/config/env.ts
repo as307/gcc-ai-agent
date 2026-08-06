@@ -9,6 +9,8 @@ const envSchema = z.object({
   WHATSAPP_PHONE_NUMBER_ID: z.string().min(1),
   WHATSAPP_VERIFY_TOKEN: z.string().min(1),
   VAPI_WEBHOOK_SECRET: z.string().min(1),
+  DEFAULT_ORG_ID: z.string().min(1),
+  DEFAULT_ORG_NAME: z.string().min(1),
   PORT: z.coerce.number().int().positive().default(3000),
 });
 

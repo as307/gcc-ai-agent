@@ -18,8 +18,8 @@ export function buildServer(): FastifyInstance {
     supabase,
     anthropic,
     env,
-    orgId: process.env.DEFAULT_ORG_ID ?? '',
-    orgName: process.env.DEFAULT_ORG_NAME ?? 'the agency',
+    orgId: env.DEFAULT_ORG_ID,
+    orgName: env.DEFAULT_ORG_NAME,
   });
 
   registerVapiWebhook(app, { supabase, env });

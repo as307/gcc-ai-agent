@@ -10,6 +10,8 @@ const validEnv = {
   WHATSAPP_PHONE_NUMBER_ID: '1234567890',
   WHATSAPP_VERIFY_TOKEN: 'verify-token',
   VAPI_WEBHOOK_SECRET: 'vapi-secret',
+  DEFAULT_ORG_ID: 'org-1',
+  DEFAULT_ORG_NAME: 'Test Agency',
   PORT: '3000',
 };
 
