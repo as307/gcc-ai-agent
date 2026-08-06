@@ -25,4 +25,16 @@ describe('schema.sql', () => {
   it('enables the pgvector extension', () => {
     expect(schema).toMatch(/create extension if not exists vector/);
   });
+
+  it('adds org_id column to chat_messages for direct tenant scoping', () => {
+    expect(schema).toMatch(/create table chat_messages[\s\S]*org_id uuid/);
+  });
+
+  it('defines the check_session_org_match trigger function', () => {
+    expect(schema).toMatch(/create or replace function check_session_org_match/);
+  });
+
+  it('attaches triggers to enforce org_id matching on child tables', () => {
+    expect(schema).toMatch(/create trigger/);
+  });
 });

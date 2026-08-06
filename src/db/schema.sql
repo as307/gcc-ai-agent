@@ -33,6 +33,7 @@ create index chat_sessions_lookup_idx on chat_sessions (org_id, customer_phone, 
 
 create table chat_messages (
   id uuid primary key default uuid_generate_v4(),
+  org_id uuid not null references organizations(id) on delete cascade,
   session_id uuid not null references chat_sessions(id) on delete cascade,
   role text not null check (role in ('customer', 'agent')),
   body text not null,
@@ -59,6 +60,35 @@ create table scheduled_bookings (
   status text not null default 'confirmed' check (status in ('confirmed', 'pending', 'cancelled')),
   created_at timestamptz not null default now()
 );
+
+-- Trigger function to enforce org_id matches between child and parent tables
+create or replace function check_session_org_match()
+returns trigger
+language plpgsql
+as $$
+declare
+  v_session_org_id uuid;
+begin
+  select org_id into v_session_org_id from chat_sessions where id = new.session_id;
+  if v_session_org_id is null then
+    raise exception 'Referenced chat_sessions row not found for session_id %', new.session_id;
+  end if;
+  if v_session_org_id != new.org_id then
+    raise exception 'org_id mismatch: row org_id (%) does not match session org_id (%)', new.org_id, v_session_org_id;
+  end if;
+  return new;
+end;
+$$;
+
+create trigger check_chat_messages_org_match
+  before insert or update on chat_messages
+  for each row
+  execute function check_session_org_match();
+
+create trigger check_scheduled_bookings_org_match
+  before insert or update on scheduled_bookings
+  for each row
+  execute function check_session_org_match();
 
 create or replace function match_knowledge_base(
   p_org_id uuid,
