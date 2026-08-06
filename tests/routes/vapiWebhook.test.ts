@@ -16,7 +16,7 @@ const { createBooking } = await import('../../src/services/bookingService.js');
 
 function buildApp() {
   const app = Fastify();
-  registerVapiWebhook(app, { supabase: {} as any, env: { VAPI_WEBHOOK_SECRET: 'vapi-secret' } });
+  registerVapiWebhook(app, { supabase: {} as any, env: { VAPI_WEBHOOK_SECRET: 'vapi-secret' }, orgId: 'org-1' });
   return app;
 }
 
@@ -47,7 +47,7 @@ describe('POST /webhooks/vapi', () => {
               function: {
                 name: 'confirm_booking',
                 arguments: {
-                  orgId: 'org-1',
+                  orgId: 'attacker-controlled-org-should-be-ignored',
                   sessionId: 'sess-1',
                   customerName: 'Ahmed',
                   scheduledAt: '2026-08-10T14:00:00.000Z',

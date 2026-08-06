@@ -22,7 +22,7 @@ export function buildServer(): FastifyInstance {
     orgName: env.DEFAULT_ORG_NAME,
   });
 
-  registerVapiWebhook(app, { supabase, env });
+  registerVapiWebhook(app, { supabase, env, orgId: env.DEFAULT_ORG_ID });
 
   return app;
 }

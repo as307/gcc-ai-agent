@@ -6,6 +6,7 @@ import { createBooking } from '../services/bookingService.js';
 interface VapiWebhookDeps {
   supabase: SupabaseClient;
   env: Pick<Env, 'VAPI_WEBHOOK_SECRET'>;
+  orgId: string;
 }
 
 interface VapiToolCall {
@@ -13,7 +14,6 @@ interface VapiToolCall {
   function: {
     name: string;
     arguments: {
-      orgId: string;
       sessionId: string;
       customerName?: string;
       propertyRef?: string;
@@ -47,7 +47,7 @@ export function registerVapiWebhook(app: FastifyInstance, deps: VapiWebhookDeps)
 
       try {
         const booking = await createBooking(deps.supabase, {
-          orgId: call.function.arguments.orgId,
+          orgId: deps.orgId,
           sessionId: call.function.arguments.sessionId,
           customerName: call.function.arguments.customerName,
           propertyRef: call.function.arguments.propertyRef,
@@ -56,6 +56,7 @@ export function registerVapiWebhook(app: FastifyInstance, deps: VapiWebhookDeps)
 
         results.push({ toolCallId: call.id, result: `Booking ${booking.id} confirmed` });
       } catch (err) {
+        request.log.error({ err, toolCallId: call.id }, 'Booking creation failed');
         results.push({ toolCallId: call.id, result: 'booking_failed' });
       }
     }

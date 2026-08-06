@@ -19,11 +19,15 @@ vi.mock('../../src/services/llmService.js', () => ({
 vi.mock('../../src/services/whatsappService.js', () => ({
   sendWhatsAppMessage: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock('../../src/services/messageService.js', () => ({
+  logMessage: vi.fn().mockResolvedValue(undefined),
+}));
 
 const { registerWhatsappWebhook } = await import('../../src/routes/whatsappWebhook.js');
 const { sendWhatsAppMessage } = await import('../../src/services/whatsappService.js');
 const { searchKnowledgeBase } = await import('../../src/services/knowledgeService.js');
 const { generateReply } = await import('../../src/services/llmService.js');
+const { logMessage } = await import('../../src/services/messageService.js');
 
 function buildApp() {
   const app = Fastify();
@@ -88,6 +92,18 @@ describe('POST /webhooks/whatsapp', () => {
       [],
       'أبحث عن فيلا'
     );
+    expect(logMessage).toHaveBeenNthCalledWith(1, expect.anything(), {
+      orgId: 'org-1',
+      sessionId: 'sess-1',
+      role: 'customer',
+      body: 'أبحث عن فيلا',
+    });
+    expect(logMessage).toHaveBeenNthCalledWith(2, expect.anything(), {
+      orgId: 'org-1',
+      sessionId: 'sess-1',
+      role: 'agent',
+      body: 'يا هلا والله الغالي',
+    });
   });
 
   it('ignores payloads with no text message (e.g. delivery receipts)', async () => {
@@ -100,5 +116,28 @@ describe('POST /webhooks/whatsapp', () => {
 
     expect(JSON.parse(response.body)).toEqual({ status: 'ignored' });
     expect(sendWhatsAppMessage).not.toHaveBeenCalled();
+  });
+
+  it('sends a fallback message and responds with status error when the pipeline throws', async () => {
+    const app = buildApp();
+    (generateReply as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('Anthropic outage'));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhooks/whatsapp',
+      payload: {
+        entry: [
+          { changes: [{ value: { messages: [{ from: '96890000000', text: { body: 'أبحث عن فيلا' } }] } }] },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toEqual({ status: 'error' });
+    expect(sendWhatsAppMessage).toHaveBeenCalledWith(
+      expect.anything(),
+      '96890000000',
+      expect.stringContaining('عذراً')
+    );
   });
 });
