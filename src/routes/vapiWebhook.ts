@@ -45,15 +45,19 @@ export function registerVapiWebhook(app: FastifyInstance, deps: VapiWebhookDeps)
         continue;
       }
 
-      const booking = await createBooking(deps.supabase, {
-        orgId: call.function.arguments.orgId,
-        sessionId: call.function.arguments.sessionId,
-        customerName: call.function.arguments.customerName,
-        propertyRef: call.function.arguments.propertyRef,
-        scheduledAt: call.function.arguments.scheduledAt,
-      });
+      try {
+        const booking = await createBooking(deps.supabase, {
+          orgId: call.function.arguments.orgId,
+          sessionId: call.function.arguments.sessionId,
+          customerName: call.function.arguments.customerName,
+          propertyRef: call.function.arguments.propertyRef,
+          scheduledAt: call.function.arguments.scheduledAt,
+        });
 
-      results.push({ toolCallId: call.id, result: `Booking ${booking.id} confirmed` });
+        results.push({ toolCallId: call.id, result: `Booking ${booking.id} confirmed` });
+      } catch (err) {
+        results.push({ toolCallId: call.id, result: 'booking_failed' });
+      }
     }
 
     reply.code(200).send({ results });

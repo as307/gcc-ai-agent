@@ -84,4 +84,36 @@ describe('POST /webhooks/vapi', () => {
 
     expect(JSON.parse(response.body)).toEqual({ results: [{ toolCallId: 'call-2', result: 'unsupported_tool' }] });
   });
+
+  it('isolates a createBooking failure so the request still returns 200 with booking_failed', async () => {
+    (createBooking as unknown as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('db error'));
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: 'POST',
+      url: '/webhooks/vapi',
+      headers: { 'x-vapi-secret': 'vapi-secret' },
+      payload: {
+        message: {
+          toolCalls: [
+            {
+              id: 'call-3',
+              function: {
+                name: 'confirm_booking',
+                arguments: {
+                  orgId: 'org-1',
+                  sessionId: 'sess-1',
+                  customerName: 'Ahmed',
+                  scheduledAt: '2026-08-10T14:00:00.000Z',
+                },
+              },
+            },
+          ],
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body)).toEqual({ results: [{ toolCallId: 'call-3', result: 'booking_failed' }] });
+  });
 });
