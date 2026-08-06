@@ -22,6 +22,8 @@ vi.mock('../../src/services/whatsappService.js', () => ({
 
 const { registerWhatsappWebhook } = await import('../../src/routes/whatsappWebhook.js');
 const { sendWhatsAppMessage } = await import('../../src/services/whatsappService.js');
+const { searchKnowledgeBase } = await import('../../src/services/knowledgeService.js');
+const { generateReply } = await import('../../src/services/llmService.js');
 
 function buildApp() {
   const app = Fastify();
@@ -73,6 +75,19 @@ describe('POST /webhooks/whatsapp', () => {
     expect(response.statusCode).toBe(200);
     expect(JSON.parse(response.body)).toEqual({ status: 'ok', sessionId: 'sess-1' });
     expect(sendWhatsAppMessage).toHaveBeenCalledWith(expect.anything(), '96890000000', 'يا هلا والله الغالي');
+    expect(searchKnowledgeBase).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      'org-1',
+      'أبحث عن فيلا'
+    );
+    expect(generateReply).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.stringContaining('Al Mouj Luxury Realty'),
+      [],
+      [],
+      'أبحث عن فيلا'
+    );
   });
 
   it('ignores payloads with no text message (e.g. delivery receipts)', async () => {
