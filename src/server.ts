@@ -4,6 +4,7 @@ import { loadEnv } from './config/env.js';
 import { getSupabaseClient } from './lib/supabase.js';
 import { registerWhatsappWebhook } from './routes/whatsappWebhook.js';
 import { registerVapiWebhook } from './routes/vapiWebhook.js';
+import { verifyOmanNumber } from './services/phoneNumberGuard.js';
 
 export function buildServer(): FastifyInstance {
   const env = loadEnv();
@@ -31,5 +32,6 @@ const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
   const app = buildServer();
   const env = loadEnv();
+  await verifyOmanNumber(env);
   app.listen({ port: env.PORT, host: '0.0.0.0' });
 }
