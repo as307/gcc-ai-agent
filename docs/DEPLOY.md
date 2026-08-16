@@ -7,6 +7,9 @@ automated agent should never execute this file.
 ## 0. Prerequisites
 
 - `flyctl` installed and authenticated (`fly auth login`).
+- This deploys to Fly's Frankfurt region (`fra`, see `fly.toml`'s
+  `primary_region`) — Fly has no Gulf-region option; the WhatsApp number
+  itself is what's Oman-scoped, not the compute location.
 - Live values ready for all ten environment variables `src/config/env.ts`
   requires: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`,
   `VOYAGE_API_KEY`, `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`,
