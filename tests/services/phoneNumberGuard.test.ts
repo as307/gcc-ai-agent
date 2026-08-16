@@ -31,8 +31,21 @@ describe('verifyOmanNumber', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://graph.facebook.com/v20.0/999888777?fields=display_phone_number',
-      { headers: { Authorization: 'Bearer token-123' } }
+      { headers: { Authorization: 'Bearer token-123' }, signal: expect.any(AbortSignal) }
     );
+  });
+
+  it('passes an abort signal (bounded timeout) to fetch', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ display_phone_number: '+968 9000 0000' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await verifyOmanNumber({ WHATSAPP_TOKEN: 'token-123', WHATSAPP_PHONE_NUMBER_ID: '999888777' });
+
+    const [, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(options.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('rejects with ForeignPhoneNumberError when the number is not +968', async () => {
@@ -80,5 +93,33 @@ describe('verifyOmanNumber', () => {
     await expect(
       verifyOmanNumber({ WHATSAPP_TOKEN: 't', WHATSAPP_PHONE_NUMBER_ID: 'p' })
     ).resolves.toBe('+968-9000-0000');
+  });
+
+  it('resolves a bare-digits Oman number with no + prefix', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ display_phone_number: '968 9000 0000' }),
+      })
+    );
+
+    await expect(
+      verifyOmanNumber({ WHATSAPP_TOKEN: 't', WHATSAPP_PHONE_NUMBER_ID: 'p' })
+    ).resolves.toBe('968 9000 0000');
+  });
+
+  it('still rejects a foreign number even reformatted without a leading +', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ display_phone_number: '+1 (555) 010-0100' }),
+      })
+    );
+
+    await expect(
+      verifyOmanNumber({ WHATSAPP_TOKEN: 't', WHATSAPP_PHONE_NUMBER_ID: 'p' })
+    ).rejects.toThrow(ForeignPhoneNumberError);
   });
 });

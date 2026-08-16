@@ -37,8 +37,14 @@ export async function verifyOmanNumber(
 ): Promise<string> {
   const url = `https://graph.facebook.com/v20.0/${env.WHATSAPP_PHONE_NUMBER_ID}?fields=display_phone_number`;
 
+  // Bounded timeout: on Fly's scale-to-zero config this call happens at
+  // process startup, and an unresponsive Graph API must not stall the
+  // machine past the health-check grace period (fly.toml). This timeout
+  // only guards against a hung request -- it must never be used to relax
+  // or bypass the Oman-only check below.
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${env.WHATSAPP_TOKEN}` },
+    signal: AbortSignal.timeout(10_000),
   });
 
   if (!response.ok) {
@@ -47,9 +53,17 @@ export async function verifyOmanNumber(
 
   const body = (await response.json()) as { display_phone_number?: string };
   const displayNumber = body.display_phone_number ?? '';
-  const normalized = displayNumber.replace(/[\s-]/g, '');
 
-  if (!normalized.startsWith(OMAN_COUNTRY_CODE)) {
+  // Digits-only comparison: Meta's display_phone_number isn't reliably
+  // `+`-prefixed in every context (bare digits, parenthesized formats,
+  // etc. all occur in the wild). Stripping everything but digits and
+  // checking for a leading '968' is strictly MORE permissive for real
+  // Oman numbers (no other ITU country code collides with '968') while
+  // remaining exactly as strict against every foreign number -- this
+  // must never be loosened further than an exact '968' prefix check.
+  const digits = displayNumber.replace(/\D/g, '');
+
+  if (!digits.startsWith('968')) {
     throw new ForeignPhoneNumberError(displayNumber);
   }
 
