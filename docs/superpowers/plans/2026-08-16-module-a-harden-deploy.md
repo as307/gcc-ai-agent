@@ -1,6 +1,6 @@
 # gcc-ai-agent Module A: Harden & Deploy Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Ship Module A (the WhatsApp + Vapi.ai voice "Murshed" lead-qualification backend) as-is — no new features, no Module B — by fixing the one CI-blocking dependency vulnerability, adding a hard runtime guardrail that the configured WhatsApp number is an Oman number and nothing else, and committing the deploy scaffold that already exists uncommitted in the working tree.
 
@@ -36,23 +36,23 @@
 
 **Context:** `npm audit` currently reports one high-severity finding: `nanoid@3.3.17` (nested dependency), GHSA-2v37-7h3g-55p8 ("custom generators can loop indefinitely when size is zero"), fixed in `>=3.3.18`, non-major. CI's separate `audit` job runs `npm audit --audit-level=high` and is currently failing because of this.
 
-- [ ] **Step 1: Baseline**
+- [x] **Step 1: Baseline**
 
 Run: `npm audit` and `npm run test` and `npm run build`.
 Expected: audit shows the one high-severity `nanoid` finding; test (45/45) and build both pass. This is the known-good starting point — if test or build fail before any change, stop and report it rather than proceeding.
 
-- [ ] **Step 2: Fix it**
+- [x] **Step 2: Fix it**
 
 Run: `npm audit fix`
 
 This is a non-major, non-breaking bump (`nanoid` is a transitive dependency, not a direct one in `package.json` — `npm audit fix` resolves it by bumping the resolved version in the lockfile).
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run: `npm run test`, `npm run build`, and `npm audit --audit-level=high`.
 Expected: test and build both pass identically to baseline (45/45, clean build); `npm audit --audit-level=high` exits 0 (this is CI's exact command — matching it here catches the fix before CI would).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add package.json package-lock.json
@@ -77,7 +77,7 @@ This was failing CI's audit job (npm audit --audit-level=high)."
 
 **Context:** `src/config/env.ts` validates that `WHATSAPP_PHONE_NUMBER_ID` is a non-empty string, but that string is Meta's opaque internal phone-number ID — it carries no information about which country the number is registered in. Nothing today stops a foreign (non-Oman) number, or a number provisioned through some other path, from being silently configured. Meta's Graph API exposes the actual registered number via `GET https://graph.facebook.com/v20.0/{phone-number-id}?fields=display_phone_number` (same host and API version `src/services/whatsappService.ts` already uses for sending messages), returning JSON like `{"display_phone_number": "+968 9000 0000", ...}`. This task adds a startup-only check (not called during tests, not called from `buildServer()`) that fetches this and fails fast if the number isn't `+968`-prefixed — the concrete enforcement of "Oman numbers only."
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/services/phoneNumberGuard.test.ts`:
 
@@ -168,12 +168,12 @@ describe('verifyOmanNumber', () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `npm run test -- phoneNumberGuard`
 Expected: FAIL — `src/services/phoneNumberGuard.ts` doesn't exist yet.
 
-- [ ] **Step 3: Write `src/services/phoneNumberGuard.ts`**
+- [x] **Step 3: Write `src/services/phoneNumberGuard.ts`**
 
 ```ts
 import type { Env } from '../config/env.js';
@@ -235,12 +235,12 @@ export async function verifyOmanNumber(
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `npm run test -- phoneNumberGuard`
 Expected: PASS, all 6 assertions green.
 
-- [ ] **Step 5: Wire it into startup**
+- [x] **Step 5: Wire it into startup**
 
 Modify `src/server.ts`. Add the import alongside the existing ones:
 
@@ -273,12 +273,12 @@ if (isMainModule) {
 
 (Top-level `await` here is valid — this file is ESM, `"type": "module"` in `package.json`, `NodeNext` module resolution in `tsconfig.json`.) Deliberately do NOT call `verifyOmanNumber` inside `buildServer()` itself — `buildServer()` is called directly by `tests/server.test.ts` and other tests without a real network available, and must keep working exactly as it does today.
 
-- [ ] **Step 6: Run the full suite**
+- [x] **Step 6: Run the full suite**
 
 Run: `npm run test` and `npm run build`.
 Expected: both pass, including the 6 new `phoneNumberGuard` assertions (51 total tests). Confirm no existing test that calls `buildServer()` directly attempts a network call (it shouldn't, since the guard only runs in the `isMainModule` branch).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/services/phoneNumberGuard.ts tests/services/phoneNumberGuard.test.ts src/server.ts
@@ -306,13 +306,13 @@ and all in-process tests are unaffected."
 
 **Context:** The working tree already has a `Dockerfile`, `.dockerignore`, and `fly.toml` — written but never committed (`git status` shows them as untracked). They target Fly.io. The `Dockerfile` and `.dockerignore` are correct as they stand (a clean multi-stage Node 22 Alpine build, `EXPOSE 3000`, `CMD ["node", "dist/server.js"]`; a sane ignore list). **`fly.toml` has one bug: `app = "oman-lead-bot"`** — that's the Fly app name of an entirely different project (the Oman lead-gen bot, a separate repo). Deploying this as-is would target the wrong Fly app. Fix it to `app = "gcc-ai-agent"`, matching this repo's actual name.
 
-- [ ] **Step 1: Read the three untracked files as they currently exist**
+- [x] **Step 1: Read the three untracked files as they currently exist**
 
 Run: `cat Dockerfile .dockerignore fly.toml`
 
 Confirm what's there matches this description (a multi-stage `node:22-alpine` build copying `package.json`/`package-lock.json`, running `npm ci` then `npm run build`, then a slim runtime stage running `node dist/server.js` on port 3000; ignoring `.git`/`.env`/`.claude`/`node_modules`/`dist`; and `fly.toml` with the wrong `app` name, `primary_region = "fra"`, a `/health` check matching the route already registered in `src/server.ts`). If what you find differs meaningfully from this description, stop and report BLOCKED rather than guessing at what changed.
 
-- [ ] **Step 2: Fix the `fly.toml` app name**
+- [x] **Step 2: Fix the `fly.toml` app name**
 
 Edit `fly.toml`, changing line 1 from:
 ```
@@ -324,7 +324,7 @@ app = "gcc-ai-agent"
 ```
 Leave every other line in `fly.toml` unchanged.
 
-- [ ] **Step 3: Write `docs/DEPLOY.md`**
+- [x] **Step 3: Write `docs/DEPLOY.md`**
 
 ```markdown
 # Deploy Runbook (Fly.io)
@@ -431,11 +431,11 @@ fly releases rollback
 ```
 ```
 
-- [ ] **Step 4: Sanity-check the doc**
+- [x] **Step 4: Sanity-check the doc**
 
 Confirm the two webhook paths (`/webhooks/whatsapp`, `/webhooks/vapi`) match `src/routes/whatsappWebhook.ts` and `src/routes/vapiWebhook.ts` exactly (they do, as of this plan — reconfirm if those files have changed since). Confirm all ten env var names match `src/config/env.ts` exactly. Confirm the `/health` path matches `src/server.ts`'s registered route and `fly.toml`'s health check.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Dockerfile .dockerignore fly.toml docs/DEPLOY.md
